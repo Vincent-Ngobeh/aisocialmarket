@@ -1,7 +1,3 @@
-"""
-Campaign routes for copy generation.
-"""
-
 from fastapi import APIRouter, HTTPException, status
 
 from app.schemas.campaign import (
@@ -9,7 +5,9 @@ from app.schemas.campaign import (
     CopyGenerationResponse,
     ErrorResponse,
 )
+from app.schemas.image import CampaignFullResponse
 from app.services.claude_service import generate_copy
+from app.services.dalle_service import generate_image
 
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
@@ -27,23 +25,6 @@ router = APIRouter(prefix="/campaigns", tags=["campaigns"])
     description="Generate British English social media marketing copy using AI",
 )
 async def generate_campaign_copy(brief: CampaignBrief) -> CopyGenerationResponse:
-    """
-    Generate social media marketing copy for a UK business.
-
-    This endpoint uses Claude AI to generate platform-specific copy
-    in British English, along with an image prompt for DALL-E.
-
-    - **business_name**: Name of the business
-    - **business_type**: Type/industry of the business
-    - **target_audience**: Who the campaign is targeting
-    - **campaign_goal**: What the campaign aims to achieve
-    - **key_messages**: Key points to include in the copy
-    - **tone**: Desired tone of voice (default: friendly and professional)
-    - **platforms**: List of social media platforms to generate for
-    - **include_hashtags**: Whether to include hashtags (default: true)
-    - **include_emoji**: Whether to include emojis (default: true)
-    - **seasonal_hook**: Optional seasonal or event tie-in
-    """
     try:
         result = await generate_copy(brief)
         return result
@@ -57,4 +38,52 @@ async def generate_campaign_copy(brief: CampaignBrief) -> CopyGenerationResponse
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate copy: {str(e)}",
+        )
+
+
+@router.post(
+    "/generate-full",
+    response_model=CampaignFullResponse,
+    responses={
+        200: {"description": "Campaign generated successfully"},
+        400: {"model": ErrorResponse, "description": "Invalid request"},
+        500: {"model": ErrorResponse, "description": "Server error"},
+    },
+    summary="Generate full campaign",
+    description="Generate social media copy and promotional image",
+)
+async def generate_full_campaign(brief: CampaignBrief) -> CampaignFullResponse:
+    try:
+        copy_result = await generate_copy(brief)
+
+        image_result = None
+        image_url = None
+        revised_prompt = None
+
+        try:
+            image_result = await generate_image(prompt=copy_result.image_prompt)
+            image_url = image_result["image_url"]
+            revised_prompt = image_result["revised_prompt"]
+        except ValueError:
+            pass
+
+        return CampaignFullResponse(
+            success=True,
+            business_name=copy_result.business_name,
+            copies=[c.model_dump() for c in copy_result.copies],
+            image_prompt=copy_result.image_prompt,
+            image_url=image_url,
+            revised_image_prompt=revised_prompt,
+            message="Campaign generated successfully" if image_url else "Copy generated, image generation failed",
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate campaign: {str(e)}",
         )
