@@ -6,16 +6,40 @@ interface ApiKeyModalProps {
   initialKeys?: ApiKeys | null;
 }
 
+function validateAnthropicKey(key: string): boolean {
+  return /^sk-ant-[a-zA-Z0-9-_]{20,}$/.test(key);
+}
+
+function validateOpenAIKey(key: string): boolean {
+  return /^sk-[a-zA-Z0-9-_]{20,}$/.test(key);
+}
+
 export default function ApiKeyModal({ onSave, initialKeys }: ApiKeyModalProps) {
   const [anthropicKey, setAnthropicKey] = useState(initialKeys?.anthropicKey || "");
   const [openaiKey, setOpenaiKey] = useState(initialKeys?.openaiKey || "");
   const [showKeys, setShowKeys] = useState(false);
+  const [errors, setErrors] = useState<{ anthropic?: string; openai?: string }>({});
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (anthropicKey && openaiKey) {
-      onSave({ anthropicKey, openaiKey });
+
+    const newErrors: { anthropic?: string; openai?: string } = {};
+
+    if (!validateAnthropicKey(anthropicKey)) {
+      newErrors.anthropic = "Invalid format. Key should start with 'sk-ant-'";
     }
+
+    if (!validateOpenAIKey(openaiKey)) {
+      newErrors.openai = "Invalid format. Key should start with 'sk-'";
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setErrors({});
+    onSave({ anthropicKey, openaiKey });
   };
 
   const isValid = anthropicKey.length > 0 && openaiKey.length > 0;
@@ -37,11 +61,17 @@ export default function ApiKeyModal({ onSave, initialKeys }: ApiKeyModalProps) {
                 type={showKeys ? "text" : "password"}
                 id="anthropic-key"
                 value={anthropicKey}
-                onChange={(e) => setAnthropicKey(e.target.value)}
+                onChange={(e) => {
+                  setAnthropicKey(e.target.value);
+                  setErrors((prev) => ({ ...prev, anthropic: undefined }));
+                }}
                 placeholder="sk-ant-..."
                 required
               />
             </div>
+            {errors.anthropic && (
+              <span className="input-error">{errors.anthropic}</span>
+            )}
             <span className="input-hint">
               Get your key from{" "}
               <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">
@@ -57,11 +87,17 @@ export default function ApiKeyModal({ onSave, initialKeys }: ApiKeyModalProps) {
                 type={showKeys ? "text" : "password"}
                 id="openai-key"
                 value={openaiKey}
-                onChange={(e) => setOpenaiKey(e.target.value)}
+                onChange={(e) => {
+                  setOpenaiKey(e.target.value);
+                  setErrors((prev) => ({ ...prev, openai: undefined }));
+                }}
                 placeholder="sk-..."
                 required
               />
             </div>
+            {errors.openai && (
+              <span className="input-error">{errors.openai}</span>
+            )}
             <span className="input-hint">
               Get your key from{" "}
               <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">

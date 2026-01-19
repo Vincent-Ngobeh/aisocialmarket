@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+import logging
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.core.config import get_settings
@@ -12,6 +12,11 @@ from app.api.routes import campaign, image, seasonal
 
 
 settings = get_settings()
+
+logging.getLogger("uvicorn.access").addFilter(
+    lambda record: "X-Anthropic-Key" not in record.getMessage()
+    and "X-OpenAI-Key" not in record.getMessage()
+)
 
 
 @asynccontextmanager
@@ -34,6 +39,8 @@ app = FastAPI(
     version=settings.app_version,
     description="API for generating UK-focused social media marketing content using AI",
     lifespan=lifespan,
+    docs_url="/docs" if settings.debug else None,
+    redoc_url="/redoc" if settings.debug else None,
 )
 
 app.state.limiter = limiter
@@ -44,8 +51,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "X-Anthropic-Key", "X-OpenAI-Key"],
 )
 
 
@@ -55,7 +62,6 @@ async def root():
         "name": settings.app_name,
         "version": settings.app_version,
         "status": "running",
-        "docs": "/docs",
     }
 
 

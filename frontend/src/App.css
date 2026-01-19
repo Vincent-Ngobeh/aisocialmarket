@@ -701,3 +701,10 @@ body {
   cursor: pointer;
   accent-color: var(--primary);
 }
+
+.input-error {
+  font-size: 0.8rem;
+  color: var(--error);
+  margin-top: 0.25rem;
+  display: block;
+}
