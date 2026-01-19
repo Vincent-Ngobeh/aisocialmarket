@@ -1,21 +1,11 @@
 from openai import OpenAI
 from openai import APIError, APIConnectionError, RateLimitError
 
-from app.core.config import get_settings
-from app.core.exceptions import AIServiceException, BadRequestException
+from app.core.exceptions import AIServiceException
 
 
-settings = get_settings()
-
-
-async def generate_image(prompt: str, size: str = "1024x1024") -> dict:
-    if not settings.openai_api_key:
-        raise BadRequestException(
-            error="Configuration error",
-            detail="OpenAI API key is not configured",
-        )
-
-    client = OpenAI(api_key=settings.openai_api_key)
+async def generate_image(prompt: str, api_key: str, size: str = "1024x1024") -> dict:
+    client = OpenAI(api_key=api_key)
 
     enhanced_prompt = f"{prompt}. Professional marketing photograph, high quality, suitable for social media advertising, no text overlays."
 

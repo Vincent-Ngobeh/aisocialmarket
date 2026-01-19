@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 
 from app.core.rate_limit import limiter
+from app.core.dependencies import get_openai_key
 from app.schemas.image import (
     ImageGenerationRequest,
     ImageGenerationResponse,
@@ -21,8 +22,13 @@ router = APIRouter(prefix="/images", tags=["images"])
 async def generate_marketing_image(
     request: Request,
     image_request: ImageGenerationRequest,
+    openai_key: str = Depends(get_openai_key),
 ) -> ImageGenerationResponse:
-    result = await generate_image(prompt=image_request.prompt, size=image_request.size)
+    result = await generate_image(
+        prompt=image_request.prompt,
+        api_key=openai_key,
+        size=image_request.size,
+    )
     return ImageGenerationResponse(
         success=True,
         image_url=result["image_url"],

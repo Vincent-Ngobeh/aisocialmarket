@@ -1,12 +1,9 @@
 import anthropic
 from anthropic import APIError, APIConnectionError, RateLimitError
 
-from app.core.config import get_settings
 from app.core.exceptions import AIServiceException, BadRequestException
 from app.schemas.campaign import CampaignBrief, PlatformCopy, CopyGenerationResponse
 
-
-settings = get_settings()
 
 PLATFORM_LIMITS = {
     "Instagram": 2200,
@@ -114,14 +111,8 @@ def parse_claude_response(response_text: str, platforms: list[str]) -> tuple[lis
     return copies, image_prompt
 
 
-async def generate_copy(brief: CampaignBrief) -> CopyGenerationResponse:
-    if not settings.anthropic_api_key:
-        raise BadRequestException(
-            error="Configuration error",
-            detail="Anthropic API key is not configured",
-        )
-
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+async def generate_copy(brief: CampaignBrief, api_key: str) -> CopyGenerationResponse:
+    client = anthropic.Anthropic(api_key=api_key)
     prompt = build_copy_prompt(brief)
 
     try:

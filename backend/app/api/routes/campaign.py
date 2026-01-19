@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.rate_limit import limiter
 from app.core.exceptions import NotFoundException
+from app.core.dependencies import get_api_keys, get_anthropic_key
 from app.schemas.campaign import (
     CampaignBrief,
     CopyGenerationResponse,
@@ -26,6 +27,7 @@ router = APIRouter(prefix="/campaigns", tags=["campaigns"])
     responses={
         200: {"description": "Copy generated successfully"},
         400: {"model": ErrorResponse, "description": "Invalid request"},
+        401: {"model": ErrorResponse, "description": "API key required"},
         429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
         500: {"model": ErrorResponse, "description": "Server error"},
     },
@@ -35,8 +37,9 @@ router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 async def generate_campaign_copy(
     request: Request,
     brief: CampaignBrief,
+    anthropic_key: str = Depends(get_anthropic_key),
 ) -> CopyGenerationResponse:
-    return await generate_copy(brief)
+    return await generate_copy(brief, anthropic_key)
 
 
 @router.post(
@@ -45,6 +48,7 @@ async def generate_campaign_copy(
     responses={
         200: {"description": "Campaign generated successfully"},
         400: {"model": ErrorResponse, "description": "Invalid request"},
+        401: {"model": ErrorResponse, "description": "API keys required"},
         429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
         500: {"model": ErrorResponse, "description": "Server error"},
     },
@@ -54,16 +58,20 @@ async def generate_campaign_copy(
 async def generate_full_campaign(
     request: Request,
     brief: CampaignBrief,
+    api_keys: dict = Depends(get_api_keys),
     save: bool = Query(default=True, description="Save campaign to database"),
     db: AsyncSession = Depends(get_db),
 ) -> CampaignFullResponse:
-    copy_result = await generate_copy(brief)
+    copy_result = await generate_copy(brief, api_keys["anthropic_key"])
 
     image_url = None
     revised_prompt = None
 
     try:
-        image_result = await generate_image(prompt=copy_result.image_prompt)
+        image_result = await generate_image(
+            prompt=copy_result.image_prompt,
+            api_key=api_keys["openai_key"],
+        )
         image_url = image_result["image_url"]
         revised_prompt = image_result["revised_prompt"]
     except Exception:

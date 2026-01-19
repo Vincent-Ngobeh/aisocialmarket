@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { CampaignBrief, CampaignResponse } from "../types/campaign";
+import type { ApiKeys } from "../types/auth";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -10,22 +11,33 @@ const apiClient = axios.create({
   },
 });
 
+function getAuthHeaders(keys: ApiKeys) {
+  return {
+    "X-Anthropic-Key": keys.anthropicKey,
+    "X-OpenAI-Key": keys.openaiKey,
+  };
+}
+
 export async function generateFullCampaign(
-  brief: CampaignBrief
+  brief: CampaignBrief,
+  keys: ApiKeys
 ): Promise<CampaignResponse> {
   const response = await apiClient.post<CampaignResponse>(
     "/api/v1/campaigns/generate-full",
-    brief
+    brief,
+    { headers: getAuthHeaders(keys) }
   );
   return response.data;
 }
 
 export async function generateCopyOnly(
-  brief: CampaignBrief
+  brief: CampaignBrief,
+  keys: ApiKeys
 ): Promise<CampaignResponse> {
   const response = await apiClient.post<CampaignResponse>(
     "/api/v1/campaigns/generate-copy",
-    brief
+    brief,
+    { headers: { "X-Anthropic-Key": keys.anthropicKey } }
   );
   return response.data;
 }
