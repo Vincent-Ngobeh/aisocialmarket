@@ -11,6 +11,7 @@ from app.core.error_handlers import rate_limit_handler, general_exception_handle
 from app.api.routes import campaign, image, seasonal
 
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 logging.getLogger("uvicorn.access").addFilter(
@@ -24,9 +25,17 @@ async def lifespan(app: FastAPI):
     print(f"Starting {settings.app_name} v{settings.app_version}")
     print(f"Debug mode: {settings.debug}")
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    print("Database tables created")
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        print("Database tables created")
+    except Exception as e:
+        logger.error(f"Failed to connect to database: {e}")
+        logger.error(
+            "Check your DATABASE_URL environment variable. "
+            "If using Supabase, verify the project URL, credentials, and that the project is active."
+        )
+        raise
 
     yield
 
