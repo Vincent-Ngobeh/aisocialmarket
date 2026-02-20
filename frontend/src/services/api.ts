@@ -28,10 +28,40 @@ export interface ApiErrorDetail {
   retry_after?: number;
 }
 
+/**
+ * Normalize the response data from an API error.
+ * FastAPI's HTTPException wraps dict details under a "detail" key,
+ * so we unwrap {detail: {success, error, detail}} to the inner object.
+ */
+function normalizeErrorData(raw: unknown): ApiErrorDetail | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const obj = raw as Record<string, unknown>;
+
+  // Already flat: {success, error, detail, ...}
+  if (typeof obj.error === "string" && typeof obj.detail === "string") {
+    return obj as unknown as ApiErrorDetail;
+  }
+
+  // Nested: {detail: {success, error, detail, ...}} (FastAPI HTTPException format)
+  if (obj.detail && typeof obj.detail === "object") {
+    const inner = obj.detail as Record<string, unknown>;
+    if (typeof inner.error === "string") {
+      return inner as unknown as ApiErrorDetail;
+    }
+  }
+
+  // detail is a plain string: {detail: "some message"}
+  if (typeof obj.detail === "string") {
+    return { success: false, error: "error", detail: obj.detail };
+  }
+
+  return undefined;
+}
+
 export function parseApiError(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const status = err.response?.status;
-    const data = err.response?.data as ApiErrorDetail | undefined;
+    const data = normalizeErrorData(err.response?.data);
 
     if (!err.response) {
       return "Cannot connect to server. Please check your internet connection and try again.";

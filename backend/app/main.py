@@ -7,7 +7,8 @@ from slowapi.errors import RateLimitExceeded
 from app.core.config import get_settings
 from app.core.database import engine, Base
 from app.core.rate_limit import limiter
-from app.core.error_handlers import rate_limit_handler, general_exception_handler
+from app.core.error_handlers import api_exception_handler, rate_limit_handler, general_exception_handler
+from app.core.exceptions import APIException
 from app.api.routes import campaign, image, seasonal
 
 
@@ -57,6 +58,7 @@ app = FastAPI(
 )
 
 app.state.limiter = limiter
+app.add_exception_handler(APIException, api_exception_handler)
 app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 app.add_exception_handler(Exception, general_exception_handler)
 

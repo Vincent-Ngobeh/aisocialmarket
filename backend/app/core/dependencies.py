@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.database import get_db
+from app.core.exceptions import APIException, RateLimitException, ServiceUnavailableException
 from app.services import free_usage_service
 
 
@@ -32,23 +33,16 @@ async def check_free_tier_eligible(
     db: AsyncSession = Depends(get_db),
 ) -> str:
     if not settings.free_tier_enabled:
-        raise HTTPException(
+        raise APIException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "success": False,
-                "error": "free_tier_disabled",
-                "detail": "Free tier is currently disabled.",
-            },
+            error="free_tier_disabled",
+            detail="Free tier is currently disabled.",
         )
 
     if not settings.anthropic_api_key or not settings.openai_api_key:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={
-                "success": False,
-                "error": "free_tier_unavailable",
-                "detail": "Free tier is not configured. Please use your own API keys.",
-            },
+        raise ServiceUnavailableException(
+            error="free_tier_unavailable",
+            detail="Free tier is not configured. Please use your own API keys.",
         )
 
     ip = get_client_ip(request)
@@ -56,15 +50,11 @@ async def check_free_tier_eligible(
 
     if not can_use:
         remaining = await free_usage_service.get_remaining(db, ip)
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail={
-                "success": False,
-                "error": "free_tier_limit_reached",
-                "detail": f"Daily free tier limit of {settings.free_tier_daily_limit} generations reached. Try again tomorrow or use your own API keys.",
-                "remaining": remaining,
-                "limit": settings.free_tier_daily_limit,
-            },
+        raise RateLimitException(
+            error="free_tier_limit_reached",
+            detail=f"Daily free tier limit of {settings.free_tier_daily_limit} generations reached. Try again tomorrow or use your own API keys.",
+            remaining=remaining,
+            limit=settings.free_tier_daily_limit,
         )
 
     return ip

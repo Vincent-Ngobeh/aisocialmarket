@@ -1,8 +1,7 @@
 import anthropic
 from anthropic import APIError, APIConnectionError, AuthenticationError, RateLimitError
-from fastapi import HTTPException
 
-from app.core.exceptions import AIServiceException, BadRequestException
+from app.core.exceptions import AIServiceException, APIException
 from app.schemas.campaign import CampaignBrief, PlatformCopy, CopyGenerationResponse
 
 
@@ -152,14 +151,11 @@ async def generate_copy(brief: CampaignBrief, api_key: str, include_image_prompt
         )
 
     except AuthenticationError:
-        raise HTTPException(
+        raise APIException(
             status_code=401,
-            detail={
-                "success": False,
-                "error": "invalid_api_key",
-                "detail": "Your Anthropic API key is invalid or has been revoked. Please check your key and try again.",
-                "service": "anthropic",
-            },
+            error="invalid_api_key",
+            detail="Your Anthropic API key is invalid or has been revoked. Please check your key and try again.",
+            service="anthropic",
         )
     except RateLimitError:
         raise AIServiceException(

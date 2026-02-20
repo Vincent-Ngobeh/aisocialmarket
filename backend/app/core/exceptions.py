@@ -7,14 +7,17 @@ class APIException(HTTPException):
         status_code: int,
         error: str,
         detail: str | None = None,
+        **extra,
     ):
+        body = {
+            "success": False,
+            "error": error,
+            "detail": detail,
+            **extra,
+        }
         super().__init__(
             status_code=status_code,
-            detail={
-                "success": False,
-                "error": error,
-                "detail": detail,
-            },
+            detail=body,
         )
 
 
@@ -37,11 +40,12 @@ class NotFoundException(APIException):
 
 
 class RateLimitException(APIException):
-    def __init__(self, detail: str | None = None):
+    def __init__(self, error: str = "rate_limit_exceeded", detail: str | None = None, **extra):
         super().__init__(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            error="Rate limit exceeded",
+            error=error,
             detail=detail or "Please wait before making another request",
+            **extra,
         )
 
 

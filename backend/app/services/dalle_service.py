@@ -1,17 +1,16 @@
-from openai import AsyncOpenAI                              # <-- CHANGED
+from openai import AsyncOpenAI
 from openai import APIError, APIConnectionError, AuthenticationError, RateLimitError
-from fastapi import HTTPException
 
-from app.core.exceptions import AIServiceException
+from app.core.exceptions import AIServiceException, APIException
 
 
 async def generate_image(prompt: str, api_key: str, size: str = "1024x1024") -> dict:
-    client = AsyncOpenAI(api_key=api_key)                   # <-- CHANGED
+    client = AsyncOpenAI(api_key=api_key)
 
     enhanced_prompt = f"{prompt}. Professional marketing photograph, high quality, suitable for social media advertising, no text overlays."
 
     try:
-        response = await client.images.generate(            # <-- CHANGED (added await)
+        response = await client.images.generate(
             model="dall-e-3",
             prompt=enhanced_prompt,
             size=size,
@@ -26,14 +25,11 @@ async def generate_image(prompt: str, api_key: str, size: str = "1024x1024") -> 
         }
 
     except AuthenticationError:
-        raise HTTPException(
+        raise APIException(
             status_code=401,
-            detail={
-                "success": False,
-                "error": "invalid_api_key",
-                "detail": "Your OpenAI API key is invalid or has been revoked. Please check your key and try again.",
-                "service": "openai",
-            },
+            error="invalid_api_key",
+            detail="Your OpenAI API key is invalid or has been revoked. Please check your key and try again.",
+            service="openai",
         )
     except RateLimitError:
         raise AIServiceException(
