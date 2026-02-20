@@ -27,7 +27,7 @@ const initialFormState: CampaignBrief = {
 export default function CampaignForm({ onSubmit, isLoading }: CampaignFormProps) {
   const [formData, setFormData] = useState<CampaignBrief>(initialFormState);
   const [step, setStep] = useState(1);
-  const [generateImage, setGenerateImage] = useState(true);
+  const [generateImage, setGenerateImage] = useState(false);
   const totalSteps = 3;
 
   const handleInputChange = (
@@ -223,8 +223,8 @@ export default function CampaignForm({ onSubmit, isLoading }: CampaignFormProps)
           </div>
 
           <div className="form-group">
-            <label>Which platforms do you need?</label>
-            <div className="platform-grid">
+            <label id="platforms-label">Which platforms do you need?</label>
+            <div className="platform-grid" role="group" aria-labelledby="platforms-label">
               {AVAILABLE_PLATFORMS.map((platform) => (
                 <button
                   key={platform}
@@ -241,9 +241,10 @@ export default function CampaignForm({ onSubmit, isLoading }: CampaignFormProps)
           </div>
 
           <div className="form-group checkbox-group">
-            <label>
+            <label htmlFor="include_hashtags">
               <input
                 type="checkbox"
+                id="include_hashtags"
                 name="include_hashtags"
                 checked={formData.include_hashtags}
                 onChange={handleInputChange}
@@ -251,9 +252,10 @@ export default function CampaignForm({ onSubmit, isLoading }: CampaignFormProps)
               Include hashtags
             </label>
 
-            <label>
+            <label htmlFor="include_emoji">
               <input
                 type="checkbox"
+                id="include_emoji"
                 name="include_emoji"
                 checked={formData.include_emoji}
                 onChange={handleInputChange}
@@ -263,9 +265,10 @@ export default function CampaignForm({ onSubmit, isLoading }: CampaignFormProps)
           </div>
 
           <div className="form-group checkbox-group">
-            <label>
+            <label htmlFor="generate_image">
               <input
                 type="checkbox"
+                id="generate_image"
                 checked={generateImage}
                 onChange={(e) => setGenerateImage(e.target.checked)}
               />

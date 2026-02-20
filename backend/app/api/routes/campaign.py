@@ -117,6 +117,7 @@ async def generate_full_campaign(
 async def generate_free_campaign(
     request: Request,
     brief: CampaignBrief,
+    generate_image_flag: bool = Query(default=False, alias="generate_image"),
     ip: str = Depends(check_free_tier_eligible),
     db: AsyncSession = Depends(get_db),
 ) -> CampaignFullResponse:
@@ -125,15 +126,16 @@ async def generate_free_campaign(
     image_url = None
     revised_prompt = None
 
-    try:
-        image_result = await generate_image(
-            prompt=copy_result.image_prompt,
-            api_key=settings.openai_api_key,
-        )
-        image_url = image_result["image_url"]
-        revised_prompt = image_result["revised_prompt"]
-    except Exception:
-        pass
+    if generate_image_flag:
+        try:
+            image_result = await generate_image(
+                prompt=copy_result.image_prompt,
+                api_key=settings.openai_api_key,
+            )
+            image_url = image_result["image_url"]
+            revised_prompt = image_result["revised_prompt"]
+        except Exception:
+            pass
 
     await free_usage_service.increment_usage(db, ip)
     remaining = await free_usage_service.get_remaining(db, ip)

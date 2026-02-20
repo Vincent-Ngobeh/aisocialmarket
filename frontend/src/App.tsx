@@ -56,7 +56,7 @@ function App() {
       setError(null);
 
       try {
-        const response = await generateFreeCampaign(brief);
+        const response = await generateFreeCampaign(brief, generateImage);
         setResult(response);
       } catch (err: unknown) {
         const message = parseApiError(err);

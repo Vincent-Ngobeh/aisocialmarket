@@ -95,11 +95,13 @@ export async function generateCopyOnly(
 }
 
 export async function generateFreeCampaign(
-  brief: CampaignBrief
+  brief: CampaignBrief,
+  generateImage: boolean = false
 ): Promise<CampaignResponse> {
   const response = await apiClient.post<CampaignResponse>(
     "/api/v1/campaigns/generate-free",
-    brief
+    brief,
+    { params: { generate_image: generateImage } }
   );
   return response.data;
 }
