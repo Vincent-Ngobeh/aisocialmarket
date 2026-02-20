@@ -5,7 +5,7 @@ interface CampaignResultsProps {
   onReset: () => void;
 }
 
-function CopyCard({ platformCopy }: { platformCopy: PlatformCopy }) {
+export function CopyCard({ platformCopy }: { platformCopy: PlatformCopy }) {
   const handleCopy = async () => {
     await navigator.clipboard.writeText(platformCopy.content);
   };
