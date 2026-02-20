@@ -1,8 +1,12 @@
+import logging                                              # <-- ADDED
+
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
 from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)                        # <-- ADDED
 
 
 def _cors_headers(request: Request) -> dict[str, str]:
@@ -30,6 +34,14 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONRe
 
 
 async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.error(                                           # <-- ADDED block
+        "Unhandled exception on %s %s: %s: %s",
+        request.method,
+        request.url.path,
+        type(exc).__name__,
+        str(exc),
+        exc_info=True,
+    )
     return JSONResponse(
         status_code=500,
         headers=_cors_headers(request),

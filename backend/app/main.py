@@ -24,6 +24,10 @@ logging.getLogger("uvicorn.access").addFilter(
 async def lifespan(app: FastAPI):
     print(f"Starting {settings.app_name} v{settings.app_version}")
     print(f"Debug mode: {settings.debug}")
+    print(f"CORS origins: {settings.cors_origins}")          # <-- ADDED
+    print(f"Free tier enabled: {settings.free_tier_enabled}") # <-- ADDED
+    print(f"Anthropic key set: {bool(settings.anthropic_api_key)}") # <-- ADDED
+    print(f"OpenAI key set: {bool(settings.openai_api_key)}")       # <-- ADDED
 
     try:
         async with engine.begin() as conn:

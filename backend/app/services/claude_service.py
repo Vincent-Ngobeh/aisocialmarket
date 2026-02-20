@@ -113,11 +113,11 @@ def parse_claude_response(response_text: str, platforms: list[str]) -> tuple[lis
 
 
 async def generate_copy(brief: CampaignBrief, api_key: str) -> CopyGenerationResponse:
-    client = anthropic.Anthropic(api_key=api_key)
+    client = anthropic.AsyncAnthropic(api_key=api_key)       # <-- CHANGED
     prompt = build_copy_prompt(brief)
 
     try:
-        message = client.messages.create(
+        message = await client.messages.create(              # <-- CHANGED (added await)
             model="claude-sonnet-4-20250514",
             max_tokens=2048,
             messages=[

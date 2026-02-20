@@ -1,4 +1,4 @@
-from openai import OpenAI
+from openai import AsyncOpenAI                              # <-- CHANGED
 from openai import APIError, APIConnectionError, AuthenticationError, RateLimitError
 from fastapi import HTTPException
 
@@ -6,12 +6,12 @@ from app.core.exceptions import AIServiceException
 
 
 async def generate_image(prompt: str, api_key: str, size: str = "1024x1024") -> dict:
-    client = OpenAI(api_key=api_key)
+    client = AsyncOpenAI(api_key=api_key)                   # <-- CHANGED
 
     enhanced_prompt = f"{prompt}. Professional marketing photograph, high quality, suitable for social media advertising, no text overlays."
 
     try:
-        response = client.images.generate(
+        response = await client.images.generate(            # <-- CHANGED (added await)
             model="dall-e-3",
             prompt=enhanced_prompt,
             size=size,
