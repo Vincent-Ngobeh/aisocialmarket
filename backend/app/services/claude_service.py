@@ -1,5 +1,6 @@
 import anthropic
-from anthropic import APIError, APIConnectionError, RateLimitError
+from anthropic import APIError, APIConnectionError, AuthenticationError, RateLimitError
+from fastapi import HTTPException
 
 from app.core.exceptions import AIServiceException, BadRequestException
 from app.schemas.campaign import CampaignBrief, PlatformCopy, CopyGenerationResponse
@@ -150,18 +151,28 @@ async def generate_copy(brief: CampaignBrief, api_key: str) -> CopyGenerationRes
             message="Copy generated successfully using British English",
         )
 
+    except AuthenticationError:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "success": False,
+                "error": "invalid_api_key",
+                "detail": "Your Anthropic API key is invalid or has been revoked. Please check your key and try again.",
+                "service": "anthropic",
+            },
+        )
     except RateLimitError:
         raise AIServiceException(
             service="Claude",
-            detail="Rate limit exceeded. Please try again in a few moments.",
+            detail="Anthropic rate limit exceeded. Please wait a moment and try again.",
         )
     except APIConnectionError:
         raise AIServiceException(
             service="Claude",
-            detail="Could not connect to Claude API. Please try again.",
+            detail="Could not connect to Claude API. Please check your internet connection and try again.",
         )
     except APIError as e:
         raise AIServiceException(
             service="Claude",
-            detail=str(e),
+            detail=f"Claude API error: {str(e)}",
         )

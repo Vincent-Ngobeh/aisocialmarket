@@ -8,8 +8,9 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONRe
         status_code=429,
         content={
             "success": False,
-            "error": "Rate limit exceeded",
-            "detail": f"Too many requests. Limit: {exc.detail}",
+            "error": "rate_limit_exceeded",
+            "detail": f"Too many requests. Limit: {exc.detail}. Please wait before trying again.",
+            "retry_after": 60,
         },
     )
 

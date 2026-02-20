@@ -1,5 +1,6 @@
 from openai import OpenAI
-from openai import APIError, APIConnectionError, RateLimitError
+from openai import APIError, APIConnectionError, AuthenticationError, RateLimitError
+from fastapi import HTTPException
 
 from app.core.exceptions import AIServiceException
 
@@ -24,18 +25,28 @@ async def generate_image(prompt: str, api_key: str, size: str = "1024x1024") -> 
             "revised_prompt": response.data[0].revised_prompt,
         }
 
+    except AuthenticationError:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "success": False,
+                "error": "invalid_api_key",
+                "detail": "Your OpenAI API key is invalid or has been revoked. Please check your key and try again.",
+                "service": "openai",
+            },
+        )
     except RateLimitError:
         raise AIServiceException(
             service="DALL-E",
-            detail="Rate limit exceeded. Please try again in a few moments.",
+            detail="OpenAI rate limit exceeded. Please wait a moment and try again.",
         )
     except APIConnectionError:
         raise AIServiceException(
             service="DALL-E",
-            detail="Could not connect to OpenAI API. Please try again.",
+            detail="Could not connect to OpenAI API. Please check your internet connection and try again.",
         )
     except APIError as e:
         raise AIServiceException(
             service="DALL-E",
-            detail=str(e),
+            detail=f"OpenAI API error: {str(e)}",
         )
