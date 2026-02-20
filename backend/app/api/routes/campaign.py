@@ -1,23 +1,28 @@
-from fastapi import APIRouter, HTTPException, status, Depends, Query, Request
+from datetime import date, timedelta
+
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.rate_limit import limiter
 from app.core.exceptions import NotFoundException
-from app.core.dependencies import get_api_keys, get_anthropic_key
+from app.core.dependencies import get_api_keys, get_anthropic_key, get_client_ip, check_free_tier_eligible
 from app.schemas.campaign import (
     CampaignBrief,
     CopyGenerationResponse,
     ErrorResponse,
     CampaignRecord,
     CampaignListResponse,
+    FreeTierStatusResponse,
 )
 from app.schemas.image import CampaignFullResponse
 from app.services.claude_service import generate_copy
 from app.services.dalle_service import generate_image
-from app.services import campaign_service
+from app.services import campaign_service, free_usage_service
 
 
+settings = get_settings()
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 
 
@@ -94,6 +99,84 @@ async def generate_full_campaign(
         image_url=image_url,
         revised_image_prompt=revised_prompt,
         message="Campaign generated successfully" if image_url else "Copy generated, image generation failed",
+    )
+
+
+@router.post(
+    "/generate-free",
+    response_model=CampaignFullResponse,
+    responses={
+        200: {"description": "Campaign generated with free tier"},
+        400: {"model": ErrorResponse, "description": "Invalid request"},
+        429: {"model": ErrorResponse, "description": "Free tier limit reached"},
+        503: {"model": ErrorResponse, "description": "Free tier unavailable"},
+    },
+    summary="Generate full campaign using free tier",
+)
+@limiter.limit("2/minute")
+async def generate_free_campaign(
+    request: Request,
+    brief: CampaignBrief,
+    ip: str = Depends(check_free_tier_eligible),
+    db: AsyncSession = Depends(get_db),
+) -> CampaignFullResponse:
+    copy_result = await generate_copy(brief, settings.anthropic_api_key)
+
+    image_url = None
+    revised_prompt = None
+
+    try:
+        image_result = await generate_image(
+            prompt=copy_result.image_prompt,
+            api_key=settings.openai_api_key,
+        )
+        image_url = image_result["image_url"]
+        revised_prompt = image_result["revised_prompt"]
+    except Exception:
+        pass
+
+    await free_usage_service.increment_usage(db, ip)
+    remaining = await free_usage_service.get_remaining(db, ip)
+
+    await campaign_service.save_campaign(
+        db=db,
+        brief=brief,
+        copies=copy_result.copies,
+        image_prompt=copy_result.image_prompt,
+        image_url=image_url,
+    )
+
+    return CampaignFullResponse(
+        success=True,
+        business_name=copy_result.business_name,
+        copies=[c.model_dump() for c in copy_result.copies],
+        image_prompt=copy_result.image_prompt,
+        image_url=image_url,
+        revised_image_prompt=revised_prompt,
+        message=f"Campaign generated successfully ({remaining} free generations remaining today)"
+        if image_url
+        else f"Copy generated, image generation failed ({remaining} free generations remaining today)",
+    )
+
+
+@router.get(
+    "/free-tier-status",
+    response_model=FreeTierStatusResponse,
+    summary="Check free tier usage status",
+)
+@limiter.limit("30/minute")
+async def free_tier_status(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> FreeTierStatusResponse:
+    ip = get_client_ip(request)
+    remaining = await free_usage_service.get_remaining(db, ip)
+    tomorrow = date.today() + timedelta(days=1)
+
+    return FreeTierStatusResponse(
+        remaining=remaining,
+        limit=settings.free_tier_daily_limit,
+        resets_at=tomorrow.isoformat(),
     )
 
 

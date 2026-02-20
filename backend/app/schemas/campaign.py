@@ -85,3 +85,9 @@ class CampaignListResponse(BaseModel):
     success: bool = True
     campaigns: list[CampaignRecord]
     total: int
+
+
+class FreeTierStatusResponse(BaseModel):
+    remaining: int
+    limit: int
+    resets_at: str
