@@ -10,7 +10,7 @@ async def save_campaign(
     db: AsyncSession,
     brief: CampaignBrief,
     copies: list[PlatformCopy],
-    image_prompt: str,
+    image_prompt: str | None = None,
     image_url: str | None = None,
 ) -> Campaign:
     campaign = Campaign(

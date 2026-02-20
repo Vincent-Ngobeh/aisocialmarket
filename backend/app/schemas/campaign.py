@@ -73,7 +73,7 @@ class CampaignRecord(BaseModel):
     include_emoji: bool
     seasonal_hook: str | None
     generated_copies: list[dict]
-    image_prompt: str
+    image_prompt: str | None
     image_url: str | None
     created_at: datetime
 

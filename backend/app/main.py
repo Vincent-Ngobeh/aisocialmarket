@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 
 from app.core.config import get_settings
+from sqlalchemy import text
 from app.core.database import engine, Base
 from app.core.rate_limit import limiter
 from app.core.error_handlers import api_exception_handler, rate_limit_handler, general_exception_handler
@@ -25,14 +26,18 @@ logging.getLogger("uvicorn.access").addFilter(
 async def lifespan(app: FastAPI):
     print(f"Starting {settings.app_name} v{settings.app_version}")
     print(f"Debug mode: {settings.debug}")
-    print(f"CORS origins: {settings.cors_origins}")          # <-- ADDED
-    print(f"Free tier enabled: {settings.free_tier_enabled}") # <-- ADDED
-    print(f"Anthropic key set: {bool(settings.anthropic_api_key)}") # <-- ADDED
-    print(f"OpenAI key set: {bool(settings.openai_api_key)}")       # <-- ADDED
+    print(f"CORS origins: {settings.cors_origins}")
+    print(f"Free tier enabled: {settings.free_tier_enabled}")
+    print(f"Anthropic key set: {bool(settings.anthropic_api_key)}")
+    print(f"OpenAI key set: {bool(settings.openai_api_key)}")
 
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            # Migrate: allow NULL in image_prompt for copy-only generations
+            await conn.execute(
+                text("ALTER TABLE campaigns ALTER COLUMN image_prompt DROP NOT NULL")
+            )
         print("Database tables created")
     except Exception as e:
         logger.error(f"Failed to connect to database: {e}")

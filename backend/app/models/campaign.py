@@ -22,7 +22,7 @@ class Campaign(Base):
     seasonal_hook: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
     generated_copies: Mapped[dict] = mapped_column(JSON, nullable=False)
-    image_prompt: Mapped[str] = mapped_column(Text, nullable=False)
+    image_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
