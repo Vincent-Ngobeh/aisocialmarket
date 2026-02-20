@@ -26,7 +26,7 @@ class CampaignFullResponse(BaseModel):
     success: bool = Field(default=True)
     business_name: str
     copies: list = Field(..., description="Generated copy for each platform")
-    image_prompt: str = Field(..., description="Prompt used for image generation")
+    image_prompt: str | None = Field(default=None, description="Prompt used for image generation")
     image_url: str | None = Field(default=None, description="Generated image URL")
     revised_image_prompt: str | None = Field(default=None)
     message: str | None = None

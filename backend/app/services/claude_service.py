@@ -19,7 +19,7 @@ def get_platform_limit(platform: str) -> int:
     return PLATFORM_LIMITS.get(platform, 500)
 
 
-def build_copy_prompt(brief: CampaignBrief) -> str:
+def build_copy_prompt(brief: CampaignBrief, include_image_prompt: bool = True) -> str:
     platforms_info = "\n".join(
         f"- {p}: Maximum {get_platform_limit(p)} characters"
         for p in brief.platforms
@@ -61,24 +61,24 @@ For each platform, provide:
 1. The platform name
 2. The complete copy (ready to post)
 3. Ensure British spelling throughout
-
+{"" if not include_image_prompt else """
 Also provide a DALL-E image prompt that would create an appropriate promotional image for this campaign. The prompt should:
 - Describe a professional marketing image
 - Match the brand tone
 - Be suitable for UK audiences
 - NOT include any text in the image (text will be added separately)
-
+"""}
 Respond in this exact format for each platform:
 
 [PLATFORM: platform_name]
 [COPY]
 Your generated copy here...
 [/COPY]
-
+{"" if not include_image_prompt else """
 [IMAGE_PROMPT]
 Your DALL-E prompt here...
 [/IMAGE_PROMPT]
-"""
+"""}"""
     return prompt
 
 
@@ -112,12 +112,12 @@ def parse_claude_response(response_text: str, platforms: list[str]) -> tuple[lis
     return copies, image_prompt
 
 
-async def generate_copy(brief: CampaignBrief, api_key: str) -> CopyGenerationResponse:
-    client = anthropic.AsyncAnthropic(api_key=api_key)       # <-- CHANGED
-    prompt = build_copy_prompt(brief)
+async def generate_copy(brief: CampaignBrief, api_key: str, include_image_prompt: bool = True) -> CopyGenerationResponse:
+    client = anthropic.AsyncAnthropic(api_key=api_key)
+    prompt = build_copy_prompt(brief, include_image_prompt=include_image_prompt)
 
     try:
-        message = await client.messages.create(              # <-- CHANGED (added await)
+        message = await client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=2048,
             messages=[
@@ -140,14 +140,14 @@ async def generate_copy(brief: CampaignBrief, api_key: str) -> CopyGenerationRes
                 )
             ]
 
-        if not image_prompt:
+        if include_image_prompt and not image_prompt:
             image_prompt = f"Professional marketing photograph for {brief.business_type}, {brief.tone} style, suitable for UK audience, no text"
 
         return CopyGenerationResponse(
             success=True,
             business_name=brief.business_name,
             copies=copies,
-            image_prompt=image_prompt,
+            image_prompt=image_prompt if include_image_prompt else None,
             message="Copy generated successfully using British English",
         )
 

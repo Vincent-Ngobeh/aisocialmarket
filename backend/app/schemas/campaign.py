@@ -50,7 +50,7 @@ class CopyGenerationResponse(BaseModel):
     success: bool = Field(default=True)
     business_name: str
     copies: list[PlatformCopy]
-    image_prompt: str
+    image_prompt: str | None = None
     message: str | None = None
 
 

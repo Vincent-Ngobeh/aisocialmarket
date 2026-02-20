@@ -121,10 +121,13 @@ async def generate_free_campaign(
     ip: str = Depends(check_free_tier_eligible),
     db: AsyncSession = Depends(get_db),
 ) -> CampaignFullResponse:
-    copy_result = await generate_copy(brief, settings.anthropic_api_key)
+    copy_result = await generate_copy(
+        brief, settings.anthropic_api_key, include_image_prompt=generate_image_flag
+    )
 
     image_url = None
     revised_prompt = None
+    image_failed = False
 
     if generate_image_flag:
         try:
@@ -135,7 +138,7 @@ async def generate_free_campaign(
             image_url = image_result["image_url"]
             revised_prompt = image_result["revised_prompt"]
         except Exception:
-            pass
+            image_failed = True
 
     await free_usage_service.increment_usage(db, ip)
     remaining = await free_usage_service.get_remaining(db, ip)
@@ -148,6 +151,13 @@ async def generate_free_campaign(
         image_url=image_url,
     )
 
+    if image_url:
+        msg = f"Campaign generated successfully ({remaining} free generations remaining today)"
+    elif image_failed:
+        msg = f"Copy generated, image generation failed ({remaining} free generations remaining today)"
+    else:
+        msg = f"Copy generated successfully ({remaining} free generations remaining today)"
+
     return CampaignFullResponse(
         success=True,
         business_name=copy_result.business_name,
@@ -155,9 +165,7 @@ async def generate_free_campaign(
         image_prompt=copy_result.image_prompt,
         image_url=image_url,
         revised_image_prompt=revised_prompt,
-        message=f"Campaign generated successfully ({remaining} free generations remaining today)"
-        if image_url
-        else f"Copy generated, image generation failed ({remaining} free generations remaining today)",
+        message=msg,
     )
 
 
