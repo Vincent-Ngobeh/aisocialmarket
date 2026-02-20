@@ -1,8 +1,10 @@
-import { useState } from "react";
-import type { ApiKeys } from "../types/auth";
+import { useState, useEffect } from "react";
+import type { ApiKeys, FreeTierStatus } from "../types/auth";
+import { getFreeTierStatus } from "../services/api";
 
 interface ApiKeyModalProps {
   onSave: (keys: ApiKeys) => void;
+  onTryFree: () => void;
   initialKeys?: ApiKeys | null;
 }
 
@@ -14,11 +16,20 @@ function validateOpenAIKey(key: string): boolean {
   return /^sk-[a-zA-Z0-9-_]{20,}$/.test(key);
 }
 
-export default function ApiKeyModal({ onSave, initialKeys }: ApiKeyModalProps) {
+export default function ApiKeyModal({ onSave, onTryFree, initialKeys }: ApiKeyModalProps) {
   const [anthropicKey, setAnthropicKey] = useState(initialKeys?.anthropicKey || "");
   const [openaiKey, setOpenaiKey] = useState(initialKeys?.openaiKey || "");
   const [showKeys, setShowKeys] = useState(false);
   const [errors, setErrors] = useState<{ anthropic?: string; openai?: string }>({});
+  const [freeTierStatus, setFreeTierStatus] = useState<FreeTierStatus | null>(null);
+  const [freeTierLoading, setFreeTierLoading] = useState(true);
+
+  useEffect(() => {
+    getFreeTierStatus()
+      .then(setFreeTierStatus)
+      .catch(() => setFreeTierStatus(null))
+      .finally(() => setFreeTierLoading(false));
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,13 +54,46 @@ export default function ApiKeyModal({ onSave, initialKeys }: ApiKeyModalProps) {
   };
 
   const isValid = anthropicKey.length > 0 && openaiKey.length > 0;
+  const hasFreeGenerations = freeTierStatus !== null && freeTierStatus.remaining > 0;
 
   return (
     <div className="modal-overlay">
       <div className="modal">
-        <h2>Enter Your API Keys</h2>
+        <h2>Get Started</h2>
+
+        {!freeTierLoading && hasFreeGenerations && (
+          <div className="free-tier-section">
+            <div className="free-tier-badge">
+              {freeTierStatus!.remaining} of {freeTierStatus!.limit} free generations remaining today
+            </div>
+            <p className="free-tier-description">
+              Try the app instantly — no API keys needed. Generate full campaigns
+              with copy and images, completely free.
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary btn-free-tier"
+              onClick={onTryFree}
+            >
+              Try Free
+            </button>
+            <div className="modal-divider">
+              <span>or use your own keys</span>
+            </div>
+          </div>
+        )}
+
+        {!freeTierLoading && !hasFreeGenerations && freeTierStatus !== null && (
+          <div className="free-tier-exhausted">
+            <p>
+              You've used all {freeTierStatus.limit} free generations for today.
+              Enter your own API keys to continue, or try again tomorrow.
+            </p>
+          </div>
+        )}
+
         <p className="modal-description">
-          This application requires your own API keys to generate content.
+          Enter your own API keys for unlimited generations.
           Keys are stored in your browser session and are never saved on our servers.
         </p>
 
