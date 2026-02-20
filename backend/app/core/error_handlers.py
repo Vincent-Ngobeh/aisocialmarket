@@ -2,6 +2,9 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
+from app.core.config import get_settings
+
+
 def _cors_headers(request: Request) -> dict[str, str]:
     origin = request.headers.get("origin", "")
     settings = get_settings()
@@ -12,9 +15,11 @@ def _cors_headers(request: Request) -> dict[str, str]:
         }
     return {}
 
+
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
     return JSONResponse(
         status_code=429,
+        headers=_cors_headers(request),
         content={
             "success": False,
             "error": "rate_limit_exceeded",
@@ -27,6 +32,7 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONRe
 async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     return JSONResponse(
         status_code=500,
+        headers=_cors_headers(request),
         content={
             "success": False,
             "error": "Internal server error",

@@ -28,7 +28,8 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins(self) -> list[str]:
-        origins = [origin.strip() for origin in self.frontend_url.split(",")]
+        url = self.frontend_url.strip().strip('"').strip("'")
+        origins = [origin.strip() for origin in url.split(",")]
         if self.debug:
             origins.extend(["http://localhost:5173", "http://localhost:3000"])
         return origins
