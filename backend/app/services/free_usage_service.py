@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +28,7 @@ async def increment_usage(db: AsyncSession, ip_address: str) -> int:
     ).on_conflict_do_update(
         constraint="uq_ip_date",
         set_={"generation_count": FreeUsage.generation_count + 1,
-              "updated_at": datetime.now(timezone.utc)},
+              "updated_at": datetime.utcnow()},
     ).returning(FreeUsage.generation_count)
 
     result = await db.execute(stmt)
