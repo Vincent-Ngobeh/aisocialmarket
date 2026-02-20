@@ -1,5 +1,13 @@
 import re
-from fastapi import Header, HTTPException, status
+from fastapi import Header, HTTPException, Request, Depends, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import get_settings
+from app.core.database import get_db
+from app.services import free_usage_service
+
+
+settings = get_settings()
 
 
 def validate_anthropic_key(key: str) -> bool:
@@ -8,6 +16,58 @@ def validate_anthropic_key(key: str) -> bool:
 
 def validate_openai_key(key: str) -> bool:
     return bool(re.match(r'^sk-[a-zA-Z0-9-_]{20,}$', key))
+
+
+def get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    if request.client:
+        return request.client.host
+    return "unknown"
+
+
+async def check_free_tier_eligible(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> str:
+    if not settings.free_tier_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "success": False,
+                "error": "free_tier_disabled",
+                "detail": "Free tier is currently disabled.",
+            },
+        )
+
+    if not settings.anthropic_api_key or not settings.openai_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "success": False,
+                "error": "free_tier_unavailable",
+                "detail": "Free tier is not configured. Please use your own API keys.",
+            },
+        )
+
+    ip = get_client_ip(request)
+    can_use = await free_usage_service.can_generate(db, ip)
+
+    if not can_use:
+        remaining = await free_usage_service.get_remaining(db, ip)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "success": False,
+                "error": "free_tier_limit_reached",
+                "detail": f"Daily free tier limit of {settings.free_tier_daily_limit} generations reached. Try again tomorrow or use your own API keys.",
+                "remaining": remaining,
+                "limit": settings.free_tier_daily_limit,
+            },
+        )
+
+    return ip
 
 
 async def get_api_keys(

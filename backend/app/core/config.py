@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     rate_limit_requests: int = 10
     rate_limit_window_seconds: int = 60
 
+    free_tier_enabled: bool = True
+    free_tier_daily_limit: int = 5
+
     @property
     def cors_origins(self) -> list[str]:
         origins = [origin.strip() for origin in self.frontend_url.split(",")]
