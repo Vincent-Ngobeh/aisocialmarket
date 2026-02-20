@@ -1,6 +1,6 @@
 import axios from "axios";
 import type { CampaignBrief, CampaignResponse } from "../types/campaign";
-import type { ApiKeys } from "../types/auth";
+import type { ApiKeys, FreeTierStatus } from "../types/auth";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -16,6 +16,58 @@ function getAuthHeaders(keys: ApiKeys) {
     "X-Anthropic-Key": keys.anthropicKey,
     "X-OpenAI-Key": keys.openaiKey,
   };
+}
+
+export interface ApiErrorDetail {
+  success: boolean;
+  error: string;
+  detail: string;
+  service?: string;
+  remaining?: number;
+  limit?: number;
+  retry_after?: number;
+}
+
+export function parseApiError(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const status = err.response?.status;
+    const data = err.response?.data as ApiErrorDetail | undefined;
+
+    if (!err.response) {
+      return "Cannot connect to server. Please check your internet connection and try again.";
+    }
+
+    if (status === 401) {
+      if (data?.error === "invalid_api_key") {
+        const service = data.service === "anthropic" ? "Anthropic" : "OpenAI";
+        return `Your ${service} API key is invalid or has been revoked. Please update your key and try again.`;
+      }
+      return data?.detail || "Invalid API key. Please check your keys and try again.";
+    }
+
+    if (status === 429) {
+      if (data?.error === "free_tier_limit_reached") {
+        return `You've used all ${data.limit} free generations for today. Try again tomorrow or enter your own API keys to continue.`;
+      }
+      return "Too many requests. Please wait a moment before trying again.";
+    }
+
+    if (status === 502) {
+      return data?.detail || "AI service is temporarily unavailable. Please try again in a moment.";
+    }
+
+    if (status === 503) {
+      return data?.detail || "Free tier is currently unavailable. Please use your own API keys.";
+    }
+
+    return data?.detail || "Something went wrong. Please try again.";
+  }
+
+  if (err instanceof Error) {
+    return err.message;
+  }
+
+  return "Something went wrong. Please try again.";
 }
 
 export async function generateFullCampaign(
@@ -38,6 +90,23 @@ export async function generateCopyOnly(
     "/api/v1/campaigns/generate-copy",
     brief,
     { headers: { "X-Anthropic-Key": keys.anthropicKey } }
+  );
+  return response.data;
+}
+
+export async function generateFreeCampaign(
+  brief: CampaignBrief
+): Promise<CampaignResponse> {
+  const response = await apiClient.post<CampaignResponse>(
+    "/api/v1/campaigns/generate-free",
+    brief
+  );
+  return response.data;
+}
+
+export async function getFreeTierStatus(): Promise<FreeTierStatus> {
+  const response = await apiClient.get<FreeTierStatus>(
+    "/api/v1/campaigns/free-tier-status"
   );
   return response.data;
 }

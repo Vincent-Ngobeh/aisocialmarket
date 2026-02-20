@@ -3,6 +3,14 @@ export interface ApiKeys {
   openaiKey: string;
 }
 
+export type AuthMode = "free" | "byok";
+
+export interface FreeTierStatus {
+  remaining: number;
+  limit: number;
+  resets_at: string;
+}
+
 export function hasValidKeys(keys: ApiKeys | null): boolean {
   return !!(keys?.anthropicKey && keys?.openaiKey);
 }
