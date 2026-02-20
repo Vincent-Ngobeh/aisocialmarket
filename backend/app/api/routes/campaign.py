@@ -113,7 +113,7 @@ async def generate_full_campaign(
     },
     summary="Generate full campaign using free tier",
 )
-@limiter.limit("2/minute")
+@limiter.limit("5/minute")
 async def generate_free_campaign(
     request: Request,
     brief: CampaignBrief,

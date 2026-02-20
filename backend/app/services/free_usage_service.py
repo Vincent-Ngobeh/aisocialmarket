@@ -2,6 +2,7 @@ from datetime import date, datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.core.config import get_settings
 from app.models.free_usage import FreeUsage
@@ -20,22 +21,19 @@ async def get_usage_today(db: AsyncSession, ip_address: str) -> FreeUsage | None
 
 
 async def increment_usage(db: AsyncSession, ip_address: str) -> int:
-    usage = await get_usage_today(db, ip_address)
+    stmt = pg_insert(FreeUsage).values(
+        ip_address=ip_address,
+        usage_date=date.today(),
+        generation_count=1,
+    ).on_conflict_do_update(
+        constraint="uq_ip_date",
+        set_={"generation_count": FreeUsage.generation_count + 1,
+              "updated_at": datetime.now(timezone.utc)},
+    ).returning(FreeUsage.generation_count)
 
-    if usage is None:
-        usage = FreeUsage(
-            ip_address=ip_address,
-            usage_date=date.today(),
-            generation_count=1,
-        )
-        db.add(usage)
-    else:
-        usage.generation_count += 1
-        usage.updated_at = datetime.now(timezone.utc)
-
+    result = await db.execute(stmt)
     await db.commit()
-    await db.refresh(usage)
-    return usage.generation_count
+    return result.scalar_one()
 
 
 async def get_remaining(db: AsyncSession, ip_address: str) -> int:
